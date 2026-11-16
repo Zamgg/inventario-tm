@@ -184,6 +184,16 @@ td.tc-qty{color:var(--accent)} td.tc-price{color:var(--gold);font-weight:500}
 .rc-k{font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.2em;color:var(--muted2);text-transform:uppercase}
 .rc-v{font-family:'Poppins',sans-serif;font-size:.85rem;font-weight:700;color:var(--white)}
 
+/* ELIMINAR */
+.pill.del-pill{border-color:rgba(208,96,96,.2);background:rgba(208,96,96,.04)}
+.pill.del-pill:hover{border-color:rgba(208,96,96,.45);background:rgba(208,96,96,.08);box-shadow:0 10px 36px rgba(0,0,0,.6)}
+.pill.del-pill .pill-num,.pill.del-pill .pill-txt{color:var(--danger)}
+.pill.del-pill .pill-icon{color:rgba(208,96,96,.5)}
+.pill.del-pill:hover .pill-icon{color:var(--danger)}
+.row-del{background:none;border:1px solid rgba(208,96,96,.25);color:var(--danger);border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:.75rem;transition:background .15s,transform .15s}
+.row-del:hover{background:rgba(208,96,96,.1);transform:translateY(-1px)}
+.del-warn{font-family:'DM Mono',monospace;font-size:.64rem;color:#e08080;line-height:1.7;padding:.85rem 1.1rem;background:rgba(208,96,96,.06);border-top:1px solid rgba(208,96,96,.18)}
+.del-actions{padding:.4rem 1.1rem 1.1rem}
 .export-info{background:#0a0e1a;border:1px solid rgba(201,168,76,.18);border-radius:14px;padding:1.25rem 1.4rem;margin-bottom:1.5rem}
 .export-info-title{font-size:.65rem;font-weight:700;letter-spacing:.2em;color:var(--gold);text-transform:uppercase;margin-bottom:.6rem}
 .export-row{display:flex;justify-content:space-between;padding:.4rem 0;border-bottom:1px solid rgba(255,255,255,.04);font-family:'DM Mono',monospace;font-size:.74rem}
@@ -216,7 +226,8 @@ td.tc-qty{color:var(--accent)} td.tc-price{color:var(--gold);font-weight:500}
       <button class="pill" onclick="openPanel('p3')"><span class="pill-num">03</span><span class="pill-txt">Buscar por ID</span><span class="pill-icon">→</span></button>
       <button class="pill" onclick="openPanel('p4')"><span class="pill-num">04</span><span class="pill-txt">Ajustar stock</span><span class="pill-icon">→</span></button>
       <button class="pill" onclick="openPanel('p5')"><span class="pill-num">05</span><span class="pill-txt">Vender producto</span><span class="pill-icon">→</span></button>
-      <button class="pill export-pill" onclick="openPanel('p6')"><span class="pill-num">06</span><span class="pill-txt">Exportar a CSV</span><span class="pill-icon">↓</span></button>
+      <button class="pill del-pill" onclick="openPanel('p7')"><span class="pill-num">06</span><span class="pill-txt">Eliminar producto</span><span class="pill-icon">✕</span></button>
+      <button class="pill export-pill" onclick="openPanel('p6')"><span class="pill-num">07</span><span class="pill-txt">Exportar a CSV</span><span class="pill-icon">↓</span></button>
     </div>
 
     <!-- DOCUMENTACION -->
@@ -289,6 +300,7 @@ td.tc-qty{color:var(--accent)} td.tc-price{color:var(--gold);font-weight:500}
       </div>
       <button class="btn btn-primary" onclick="agregarProducto()">Agregar producto</button>
       <div class="toast" id="a-msg"></div>
+      <button class="btn btn-danger" id="a-undo" style="display:none" onclick="pedirEliminar(ultimoAgregado)">¿Te equivocaste? Eliminar este producto</button>
     </div>
   </div>
 
@@ -368,6 +380,28 @@ td.tc-qty{color:var(--accent)} td.tc-price{color:var(--gold);font-weight:500}
       <div class="toast" id="ex-msg"></div>
     </div>
   </div>
+  <!-- P7 -->
+  <div class="panel-view" id="p7">
+    <button class="back-btn" onclick="goBack()">← Volver</button>
+    <div class="float-card">
+      <div class="float-card-title">Eliminar producto</div>
+      <div class="float-card-sub">// corregir un registro equivocado</div>
+      <div class="row1"><div class="field"><label>ID del producto</label><input type="number" id="d-id" placeholder="1001"></div></div>
+      <button class="btn btn-ghost" onclick="buscarParaEliminar()">Buscar producto</button>
+      <div class="toast" id="d-msg"></div>
+      <div class="result-card" id="d-card">
+        <div class="rc-row"><span class="rc-k">ID</span><span class="rc-v" id="d-rid"></span></div>
+        <div class="rc-row"><span class="rc-k">Nombre</span><span class="rc-v" id="d-rnom"></span></div>
+        <div class="rc-row"><span class="rc-k">Cantidad</span><span class="rc-v" id="d-rcant"></span></div>
+        <div class="rc-row"><span class="rc-k">Precio</span><span class="rc-v" id="d-rprec"></span></div>
+        <div class="del-warn">Este producto se borrará del inventario y de lo guardado en este navegador. No se puede deshacer.</div>
+        <div class="del-actions">
+          <button class="btn btn-danger" onclick="confirmarEliminar()">Sí, eliminar definitivamente</button>
+          <button class="btn btn-ghost" onclick="cancelarEliminar()">Cancelar</button>
+        </div>
+      </div>
+    </div>
+  </div>
 <div class="app">
   <div class="hdr">
     <div class="hdr-tag">Sistema de Inventario - Samuel Garces / Robinson Cuellar</div>
@@ -386,6 +420,9 @@ function guardar(){
   localStorage.setItem(STORAGE_KEY,JSON.stringify(productos));
 }
 
+let ultimoAgregado=null; // ID del último producto registrado (para corregir un error de captura)
+let idPendiente=null;    // ID del producto que espera confirmación para eliminarse
+function esc(t){return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function buscarIndicePorId(id){for(let i=0;i<productos.length;i++)if(productos[i].id===id)return i;return -1}
 function agregarProducto(){
   const id=parseInt(document.getElementById('a-id').value);
@@ -399,6 +436,8 @@ function agregarProducto(){
   if(cant<0||precio<0)return toast(msg,'Valores deben ser >= 0.',1);
   productos.push({id,nombre,cantidad:cant,precio});
   guardar();
+  ultimoAgregado=id;
+  document.getElementById('a-undo').style.display='block';
   toast(msg,'"'+nombre+'" agregado correctamente.',0);
   ['a-id','a-nom','a-cant','a-prec'].forEach(x=>document.getElementById(x).value='');
   updateStats();
@@ -406,10 +445,10 @@ function agregarProducto(){
 function listarProductos(){
   const c=document.getElementById('tbl-cont');
   if(!productos.length){c.innerHTML='<div class="empty">Inventario vacío</div>';return}
-  let h='<table><thead><tr><th>ID</th><th>Nombre</th><th>Cantidad</th><th>Precio</th><th>Estado</th></tr></thead><tbody>';
+  let h='<table><thead><tr><th>ID</th><th>Nombre</th><th>Cantidad</th><th>Precio</th><th>Estado</th><th></th></tr></thead><tbody>';
   productos.forEach(p=>{
     const b=p.cantidad===0?'<span class="badge out">Sin stock</span>':p.cantidad<=5?'<span class="badge low">Bajo</span>':'<span class="badge ok">OK</span>';
-    h+='<tr><td class="tc-id">'+p.id+'</td><td class="tc-name">'+p.nombre+'</td><td class="tc-qty">'+p.cantidad+'</td><td class="tc-price">$'+p.precio.toFixed(2)+'</td><td>'+b+'</td></tr>';
+    h+='<tr><td class="tc-id">'+p.id+'</td><td class="tc-name">'+esc(p.nombre)+'</td><td class="tc-qty">'+p.cantidad+'</td><td class="tc-price">$'+p.precio.toFixed(2)+'</td><td>'+b+'</td><td><button class="row-del" title="Eliminar producto" onclick="pedirEliminar('+p.id+')">✕</button></td></tr>';
   });
   c.innerHTML=h+'</tbody></table>';
 }
@@ -459,6 +498,53 @@ function venderProducto(){
   toast(msg,'Venta realizada. Quedan '+productos[idx].cantidad+' unidades.',0);
   updateStats();
 }
+// Eliminar: equivale en C a desplazar una posición a la izquierda los elementos
+// posteriores y restar 1 a la cantidad de productos. En JS lo hace splice().
+function buscarParaEliminar(){
+  const id=parseInt(document.getElementById('d-id').value);
+  const msg=document.getElementById('d-msg');
+  const card=document.getElementById('d-card');
+  card.classList.remove('show');idPendiente=null;
+  if(!productos.length)return toast(msg,'Inventario vacío.',1);
+  if(isNaN(id))return toast(msg,'Ingresa un ID.',1);
+  const idx=buscarIndicePorId(id);
+  if(idx===-1)return toast(msg,'No existe producto con ID '+id+'.',1);
+  const p=productos[idx];
+  document.getElementById('d-rid').textContent=p.id;
+  document.getElementById('d-rnom').textContent=p.nombre;
+  document.getElementById('d-rcant').textContent=p.cantidad;
+  document.getElementById('d-rprec').textContent='$'+p.precio.toFixed(2);
+  idPendiente=id;
+  msg.classList.remove('show');
+  card.classList.add('show');
+}
+function confirmarEliminar(){
+  const msg=document.getElementById('d-msg');
+  if(idPendiente===null)return toast(msg,'Primero busca el producto a eliminar.',1);
+  const idx=buscarIndicePorId(idPendiente);
+  if(idx===-1){idPendiente=null;document.getElementById('d-card').classList.remove('show');return toast(msg,'El producto ya no existe.',1)}
+  const nombre=productos[idx].nombre;
+  productos.splice(idx,1);
+  guardar();
+  if(ultimoAgregado===idPendiente){ultimoAgregado=null;document.getElementById('a-undo').style.display='none'}
+  idPendiente=null;
+  document.getElementById('d-card').classList.remove('show');
+  document.getElementById('d-id').value='';
+  toast(msg,'"'+nombre+'" eliminado. Ya no está guardado.',0);
+  updateStats();
+}
+function cancelarEliminar(){
+  idPendiente=null;
+  document.getElementById('d-card').classList.remove('show');
+  document.getElementById('d-id').value='';
+  document.getElementById('d-msg').classList.remove('show');
+}
+function pedirEliminar(id){
+  if(id===null||id===undefined)return;
+  openPanel('p7');
+  document.getElementById('d-id').value=id;
+  buscarParaEliminar();
+}
 function exportarCSV(){
   const msg=document.getElementById('ex-msg');
   if(!productos.length)return toast(msg,'No hay productos para exportar.',1);
@@ -498,6 +584,8 @@ function openPanel(id){
   document.querySelectorAll('.panel-view').forEach(p=>p.style.display='none');
   document.getElementById(id).style.display='block';
   if(id==='p2')listarProductos();
+  if(id==='p7'&&idPendiente===null){document.getElementById('d-card').classList.remove('show');document.getElementById('d-msg').classList.remove('show')}
+  if(id!=='p1')document.getElementById('a-undo').style.display='none';
   if(id==='p6')updateExportSummary();
 }
 function goBack(){
